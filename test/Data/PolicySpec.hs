@@ -27,8 +27,8 @@ p = allow
 
 spec :: Spec
 spec = do
-  describe "Policy" $ do
-    monoidLaws p
-    monoidLaws $ Restrict p
-    monoidLaws $ Relax p
-    groupLaws p
+  describe "Monoid Policy" $ do monoidLaws p
+  describe "Monoid Restrict" $ do monoidLaws p
+  describe "Monoid Relax" $ do monoidLaws p
+  describe "Group Policy (failing)" $ do groupLaws p
+  describe "Group* Policy" $ do groupLaws' p

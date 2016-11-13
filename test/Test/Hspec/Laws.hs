@@ -26,3 +26,17 @@ groupLaws t = describe "invert" $ do
 
     it "is a right identity" $ property $ \x ->
       (invert x) <> x == mempty `asTypeOf` t
+
+    it "is associative" $ property $ \x ->
+      x <> (invert x) == (invert x) <> x `asTypeOf` t
+
+groupLaws' :: (Arbitrary a, Eq a, Show a, Group a) => a -> Spec
+groupLaws' t = describe "invert" $ do
+    it "is a left identity" $ property $ \x ->
+      x <> (invert x) == invert mempty `asTypeOf` t
+
+    it "is a right identity" $ property $ \x ->
+      (invert x) <> x == invert mempty `asTypeOf` t
+
+    it "is associative" $ property $ \x ->
+      x <> (invert x) == (invert x) <> x `asTypeOf` t

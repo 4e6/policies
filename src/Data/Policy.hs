@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedLists #-}
 
 module Data.Policy
   ( Policy(..)
@@ -31,10 +32,10 @@ newtype Relax a = Relax { getRelax :: Constraint a }
   deriving (Eq, Show)
 
 allow :: Ord a => Constraint a
-allow = Forbid $ fromList []
+allow = Forbid []
 
 deny :: Ord a => Constraint a
-deny = Permit $ fromList []
+deny = Permit []
 
 list :: Constraint a -> [a]
 list (Forbid xs) = toList xs
@@ -61,7 +62,6 @@ decrease (Forbid bs) (Permit ws) = Forbid $ bs \\ ws
 -- 0 ..      < inf
 -- narrow      wide
 
-
 -- | Default restrictive strategy.
 instance Ord a => Monoid (Constraint a) where
   mempty = allow
@@ -78,6 +78,16 @@ instance Ord a => Monoid (Relax a) where
   mappend (Relax x) (Relax y) = Relax $ decrease x y
 
 -- Groups
+
+-- TODO: This way identity law doesn't hold:
+--   x <> (invert x) == mempty
+-- but instead other equation holds:
+--   x <> (invert x) == invert mempty
+-- WTF is this construction?
+
+-- TODO: To be able to satisfy identity law we can add artificial zero element
+-- in between [allow .., Z, .. deny], similar to natural numbers.
+-- See branch `noop` with attempt to introduce zero Noop element
 --
 -- Forbid [] < Z < Permit []
 -- allow     < ? < deny
