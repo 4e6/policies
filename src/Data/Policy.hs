@@ -25,10 +25,10 @@ data Policy a
 
 type Constraint a = Policy (Set a)
 
-newtype Restrict a = Restrict { getRestrict :: Constraint a }
+newtype Restrict a = Restrict { unRestrict :: Constraint a }
   deriving (Eq, Show)
 
-newtype Relax a = Relax { getRelax :: Constraint a }
+newtype Relax a = Relax { unRelax :: Constraint a }
   deriving (Eq, Show)
 
 allow :: Ord a => Constraint a
@@ -40,6 +40,10 @@ deny = Permit []
 list :: Constraint a -> [a]
 list (Forbid xs) = toList xs
 list (Permit xs) = toList xs
+
+inversion :: Policy a -> Policy a
+inversion (Forbid a) = Permit a
+inversion (Permit a) = Forbid a
 
 -- | Combine two constraints into more restrictive one.
 increase :: Ord a => Constraint a -> Constraint a -> Constraint a
@@ -77,6 +81,23 @@ instance Ord a => Monoid (Relax a) where
   mempty = Relax deny
   mappend (Relax x) (Relax y) = Relax $ decrease x y
 
+-- Rings
+
+-- With credit to @int-index
+-- https://gist.github.com/int-index/3e08592520e5fbc7a05e090dad9a626c
+
+instance Ord a => Num (Constraint a) where
+  (+) = increase
+  (*) = decrease
+  negate = inversion
+
+  fromInteger 0 = allow
+  fromInteger 1 = deny
+  fromInteger x = error $ "Invalid constraint " ++ show x
+
+  abs = error "Abs not possible for Constraint"
+  signum = error "Signum not posible for Constraint"
+
 -- Groups
 
 -- TODO: This way identity law doesn't hold:
@@ -95,9 +116,10 @@ instance Ord a => Monoid (Relax a) where
 -- narrow          wide
 
 instance Ord a => Group (Constraint a) where
-  invert (Forbid xs) = Permit xs
-  invert (Permit xs) = Forbid xs
+  invert = inversion
 
 instance Ord a => Group (Relax a) where
-  invert (Relax (Forbid xs)) = Relax $ Permit xs
-  invert (Relax (Permit xs)) = Relax $ Forbid xs
+  invert = Relax . inversion . unRelax
+  -- invert (Relax x) = Relax $ inversion x
+  -- invert (Relax (Forbid p)) = Relax $ Permit p
+  -- invert (Relax (Permit p)) = Relax $ Forbid p

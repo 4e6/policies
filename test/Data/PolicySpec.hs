@@ -30,5 +30,7 @@ spec = do
   describe "Monoid Policy" $ do monoidLaws p
   describe "Monoid Restrict" $ do monoidLaws p
   describe "Monoid Relax" $ do monoidLaws p
-  describe "Group Policy (failing)" $ do groupLaws p
+  describe "Num Policy" $ do numLaws p
+  describe "Group Policy" $ do groupLaws p
+  describe "Group Relax" $ do groupLaws (Relax p)
   describe "Group* Policy" $ do groupLaws' p
