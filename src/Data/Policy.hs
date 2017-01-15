@@ -1,6 +1,6 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Data.Policy
   ( Policy(..)
@@ -15,6 +15,7 @@ module Data.Policy
   ) where
 
 import Data.Group
+import Data.Lattice
 import Data.Set
 
 
@@ -97,6 +98,16 @@ instance Ord a => Num (Constraint a) where
 
   abs = error "Abs not possible for Constraint"
   signum = error "Signum not posible for Constraint"
+
+-- Lattice
+
+instance Ord a => Lattice (Constraint a) where
+  meet = increase
+  join = decrease
+
+instance Ord a => BoundedLattice (Constraint a) where
+  top = allow
+  bot = deny
 
 -- Groups
 
