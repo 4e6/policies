@@ -101,9 +101,13 @@ instance Ord a => Num (Constraint a) where
 
 -- Lattice
 
-instance Ord a => Lattice (Constraint a) where
+instance Ord a => MeetSemilattice (Constraint a) where
   meet = increase
+
+instance Ord a => JoinSemilattice (Constraint a) where
   join = decrease
+
+instance Ord a => Lattice (Constraint a)
 
 instance Ord a => BoundedLattice (Constraint a) where
   top = allow
