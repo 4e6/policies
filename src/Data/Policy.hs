@@ -1,10 +1,10 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Data.Policy
   ( Policy(..)
-  , Constraint
   , Restrict(..)
   , Relax(..)
   , allow
@@ -14,47 +14,57 @@ module Data.Policy
   , decrease
   ) where
 
-import Data.Group
-import Data.Lattice
-import Data.Set
+import qualified Data.Group as G (Group, invert)
+import           Data.Lattice
+import           Data.Set
+import           Test.QuickCheck
 
 
 data Policy a
-  = Forbid a
-  | Permit a
+  = Forbid (Set a)
+  | Permit (Set a)
   deriving (Eq, Show)
 
-type Constraint a = Policy (Set a)
+instance (Arbitrary a, Ord a) => Arbitrary (Policy a) where
+  arbitrary = arbitrary >>= \case
+    True  -> Forbid <$> arbitrary
+    False -> Permit <$> arbitrary
 
-newtype Restrict a = Restrict { unRestrict :: Constraint a }
+newtype Restrict a = Restrict { unRestrict :: Policy a }
   deriving (Eq, Show)
 
-newtype Relax a = Relax { unRelax :: Constraint a }
+instance (Arbitrary a, Ord a) => Arbitrary (Restrict a) where
+  arbitrary = Restrict <$> arbitrary
+
+newtype Relax a = Relax { unRelax :: Policy a }
   deriving (Eq, Show)
 
-allow :: Ord a => Constraint a
+instance (Arbitrary a, Ord a) => Arbitrary (Relax a) where
+  arbitrary = Relax <$> arbitrary
+
+allow :: Ord a => Policy a
 allow = Forbid []
 
-deny :: Ord a => Constraint a
+deny :: Ord a => Policy a
 deny = Permit []
 
-list :: Constraint a -> [a]
+list :: Policy a -> [a]
 list (Forbid xs) = toList xs
 list (Permit xs) = toList xs
 
-inversion :: Policy a -> Policy a
-inversion (Forbid a) = Permit a
-inversion (Permit a) = Forbid a
+invert :: Policy a -> Policy a
+invert (Forbid a) = Permit a
+invert (Permit a) = Forbid a
 
 -- | Combine two constraints into more restrictive one.
-increase :: Ord a => Constraint a -> Constraint a -> Constraint a
+increase :: Ord a => Policy a -> Policy a -> Policy a
 increase (Forbid xs) (Forbid ys) = Forbid $ xs `union` ys
 increase (Permit xs) (Permit ys) = Permit $ xs `intersection` ys
 increase (Permit ws) (Forbid bs) = Permit $ ws \\ bs
 increase (Forbid bs) (Permit ws) = Permit $ ws \\ bs
 
 -- | Combine two constraints into more relaxed one.
-decrease :: Ord a => Constraint a -> Constraint a -> Constraint a
+decrease :: Ord a => Policy a -> Policy a -> Policy a
 decrease (Forbid xs) (Forbid ys) = Forbid $ xs `intersection` ys
 decrease (Permit xs) (Permit ys) = Permit $ xs `union` ys
 decrease (Permit ws) (Forbid bs) = Forbid $ bs \\ ws
@@ -68,7 +78,7 @@ decrease (Forbid bs) (Permit ws) = Forbid $ bs \\ ws
 -- narrow      wide
 
 -- | Default restrictive strategy.
-instance Ord a => Monoid (Constraint a) where
+instance Ord a => Monoid (Policy a) where
   mempty = allow
   mappend = increase
 
@@ -87,10 +97,10 @@ instance Ord a => Monoid (Relax a) where
 -- With credit to @int-index
 -- https://gist.github.com/int-index/3e08592520e5fbc7a05e090dad9a626c
 
-instance Ord a => Num (Constraint a) where
+instance Ord a => Num (Policy a) where
   (+) = increase
   (*) = decrease
-  negate = inversion
+  negate = invert
 
   fromInteger 0 = allow
   fromInteger 1 = deny
@@ -101,15 +111,15 @@ instance Ord a => Num (Constraint a) where
 
 -- Lattice
 
-instance Ord a => MeetSemilattice (Constraint a) where
+instance Ord a => MeetSemilattice (Policy a) where
   meet = increase
 
-instance Ord a => JoinSemilattice (Constraint a) where
+instance Ord a => JoinSemilattice (Policy a) where
   join = decrease
 
-instance Ord a => Lattice (Constraint a)
+instance Ord a => Lattice (Policy a)
 
-instance Ord a => BoundedLattice (Constraint a) where
+instance Ord a => BoundedLattice (Policy a) where
   top = allow
   bot = deny
 
@@ -130,11 +140,11 @@ instance Ord a => BoundedLattice (Constraint a) where
 -- -inf      < 0 < inf
 -- narrow          wide
 
-instance Ord a => Group (Constraint a) where
-  invert = inversion
+instance Ord a => G.Group (Policy a) where
+  invert = invert
 
-instance Ord a => Group (Relax a) where
-  invert = Relax . inversion . unRelax
-  -- invert (Relax x) = Relax $ inversion x
+instance Ord a => G.Group (Relax a) where
+  invert = Relax . invert . unRelax
+  -- invert (Relax x) = Relax $ invert x
   -- invert (Relax (Forbid p)) = Relax $ Permit p
   -- invert (Relax (Permit p)) = Relax $ Forbid p
